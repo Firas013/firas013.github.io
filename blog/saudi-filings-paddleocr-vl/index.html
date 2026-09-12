@@ -221,7 +221,8 @@
     font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     font-size:14px;
   }
-  figure.data caption{
+  figure.data caption,
+  figure.data .tbl-title{
     caption-side:top;
     text-align:left;
     padding-bottom:14px;
@@ -286,7 +287,8 @@
     font-variant-numeric:tabular-nums;
     font-size:13.5px;
   }
-  figure.data.paper caption{
+  figure.data.paper caption,
+  figure.data.paper .tbl-title{
     caption-side:top;text-align:left;
     padding-bottom:12px;
     font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -348,9 +350,20 @@
   }
   figure.data.paper tr.base td:first-child::after{content:""}
   figure.data.paper tr.base td{background:none;color:#2c2c2c}
+  /* Only the table scrolls. overflow-x used to sit on the figure, which put
+     the table's title and the figcaption explaining how to read it inside the
+     scroll box, so both slid away sideways while you were looking at columns. */
+  figure.data .tscroll{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+  }
   @media (max-width:640px){
-    figure.data.paper{overflow-x:auto}
-    figure.data.paper table{min-width:560px}
+    figure.data.paper .tscroll table{min-width:560px}
+    figure.data .tscroll{
+      /* a cut-off right edge is the only honest signal that there is more */
+      background:linear-gradient(to left,rgba(0,0,0,.055),rgba(0,0,0,0) 18px) right center/18px 100% no-repeat;
+    }
   }
 
   .callout{
@@ -623,6 +636,20 @@
     font-size:13px;
   }
 
+  /* The flourish behind the title is 360px wide and hangs 110px past the
+     container. On a phone that gave the whole page ~90px of sideways scroll,
+     and a page wider than the screen makes mobile browsers zoom out to fit -
+     which is what was shrinking all the body text. Decoration should never
+     cost that, so it is pulled inside the page here. */
+  @media (max-width:900px){
+    header.post::after{
+      width:min(240px,62vw);
+      height:170px;
+      right:-8px;
+      top:-70px;
+    }
+  }
+
   @media (max-width:620px){
     .meta{
       grid-template-columns:1fr;
@@ -675,6 +702,32 @@
     figure.data table{font-size:13px}
     figure.data td.num,figure.data th.num{font-size:12px}
     figure.data tr.ours td:first-child::after{content:""}
+
+    /* Nothing below 12px on a phone. These were 10-11px, which was already
+       small at desktop width and became unreadable once the page zoomed out. */
+    .meta-label,
+    .arch-kicker,
+    .mini-card,
+    .system-title,
+    .group-label,
+    figure.data.paper thead th,
+    figure.data.paper tr.grp td{font-size:12px}
+    figure.data caption,
+    figure.data .tbl-title{font-size:12.5px}
+    figcaption{font-size:13px;line-height:1.6}
+
+    /* 14px links in a 16px-tall row are a miss as often as a hit. */
+    nav.top{flex-wrap:wrap;gap:10px 18px;align-items:center}
+    nav.top a,
+    footer.post a{display:inline-block;padding:9px 0}
+
+    /* The model column was reserving 18px of right padding and 14px of left,
+       which cost most of a metric column on a 390px screen. F is the column
+       the whole piece argues about, so it is worth pulling into first view. */
+    figure.data.paper .tscroll table{min-width:520px}
+    figure.data.paper tbody td:first-child{padding-left:10px;padding-right:10px}
+    figure.data.paper td.num,
+    figure.data.paper th.num{padding-left:9px;padding-right:9px}
   }
 </style>
 
@@ -880,8 +933,9 @@
     Bold marks the best value in each column.</p>
 
     <figure class="data paper">
-      <table>
-        <caption>Arabic financial-document understanding &mdash; four Saudi filings, canonical pass. Higher is better except CER.</caption>
+      <div class="tbl-title" id="tbl1-title">Arabic financial-document understanding &mdash; four Saudi filings, canonical pass. Higher is better except CER.</div>
+      <div class="tscroll">
+      <table aria-labelledby="tbl1-title">
         <thead>
           <tr><th>Model</th><th class="num">P</th><th class="num">GriTS</th><th class="num">E</th><th class="num">CER&darr;</th><th class="num">Cov.</th><th class="num">F</th><th class="num">Script</th></tr>
         </thead>
@@ -901,6 +955,7 @@
           <tr><td>Mistral Medium 3.1</td><td class="num">0.179</td><td class="num">0.463</td><td class="num">0.215</td><td class="num">0.574</td><td class="num">0.751</td><td class="num">0.279</td><td class="num">0.750</td></tr>
         </tbody>
       </table>
+      </div>
       <figcaption>Read the rows against each other, not the columns against a threshold. The top three on E are separated by 0.015 across four documents with no confidence intervals &mdash; that is a tie, not a ranking. The column where the gap is wide enough to mean something is F.</figcaption>
     </figure>
 
@@ -947,8 +1002,9 @@
     <p>Removing it changes one of my two headline results:</p>
 
     <figure class="data">
-      <table>
-        <caption>Local stack, with and without the contaminated document</caption>
+      <div class="tbl-title" id="tbl2-title">Local stack, with and without the contaminated document</div>
+      <div class="tscroll">
+      <table aria-labelledby="tbl2-title">
         <thead>
           <tr><th>Axis</th><th class="num">All 5 docs</th><th class="num">Clean 4</th><th>Rank</th></tr>
         </thead>
@@ -958,6 +1014,7 @@
           <tr class="ours"><td>P — table structure</td><td class="num">0.442</td><td class="num">0.364</td><td>5th → <strong>6th</strong></td></tr>
         </tbody>
       </table>
+      </div>
       <figcaption>The E result was contamination — a clear first becomes a tie for second. The F result was not.</figcaption>
     </figure>
 
