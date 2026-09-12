@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Saudi Filings with a Fine-Tuned PaddleOCR-VL — Feras Aldawsari</title>
+<meta name="description" content="A fine-tuned PaddleOCR-VL specialized for Saudi financial filings, running fully locally.">
+
+<style>
+  :root{
+    --bg:#fdfcf9;
+    --fg:#1d1d1d;
+    --muted:#737373;
+    --faint:#999;
+    --accent:#ba4c18;
+    --line:#e6e6e6;
+    --code:#f7f7f7;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--fg);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  a{
+    color:var(--accent);
+    text-decoration-thickness:1px;
+    text-underline-offset:3px;
+  }
+  a:hover{text-decoration:underline}
+
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:48px 28px 110px;
+  }
+
+  nav.top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:24px;
+    margin-bottom:64px;
+  }
+  nav.top .links{display:flex;gap:22px}
+  nav.top a{
+    color:#666;
+    font-size:14px;
+  }
+  nav.top a:hover{
+    color:var(--fg);
+    text-decoration:none;
+  }
+
+  header.post{
+    position:relative;
+    margin-bottom:38px;
+  }
+  header.post::after{
+    content:"";
+    position:absolute;
+    width:360px;
+    height:240px;
+    right:-110px;
+    top:-120px;
+    pointer-events:none;
+    z-index:-1;
+    background:radial-gradient(circle, rgba(186,76,24,.13) 0%, rgba(186,76,24,0) 68%);
+  }
+  h1{
+    margin:0 0 14px;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(34px,5vw,52px);
+    line-height:1.08;
+    font-weight:700;
+    letter-spacing:-.035em;
+  }
+
+  .meta{
+    margin-top:28px;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:28px 0 30px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:42px;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .meta-item{
+    min-width:0;
+  }
+  .meta-label{
+    margin-bottom:6px;
+    font-size:11px;
+    line-height:1.2;
+    letter-spacing:.035em;
+    text-transform:uppercase;
+    color:#202020;
+  }
+  .meta-value{
+    font-size:16px;
+    line-height:1.45;
+    color:#1f1f1f;
+  }
+  .meta-value.author{
+    font-weight:650;
+  }
+  .topic-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 8px;
+  }
+  .topic-list span:not(:last-child)::after{
+    content:",";
+    color:#999;
+  }
+
+  .rule{
+    height:1px;
+    background:var(--line);
+    margin:30px 0 48px;
+  }
+
+  article{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:18.5px;
+    line-height:1.82;
+    color:#292929;
+  }
+  article p{
+    margin:0 0 26px;
+  }
+  article strong{
+    font-weight:700;
+    color:#9f3f13;
+  }
+
+  article > p,
+  article > h2,
+  article > hr,
+  article > figure.data,
+  article > .callout{
+    max-width:700px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  ::selection{
+    background:rgba(186,76,24,.16);
+    color:inherit;
+  }
+
+  article h2{
+    margin:62px 0 24px;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:23px;
+    line-height:1.25;
+    font-weight:700;
+    letter-spacing:-.02em;
+    color:#111;
+  }
+
+  article h3{
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+
+  /* inline emphasis used through the prose */
+  .hl{
+    background:linear-gradient(transparent 62%, rgba(186,76,24,.16) 62%);
+    padding:0 1px;
+  }
+  p.thesis{
+    margin:34px auto;
+    padding:0 0 0 20px;
+    border-left:2px solid var(--accent);
+    font-size:19.5px;
+    line-height:1.7;
+    color:#1f1f1f;
+  }
+
+  hr.sep{
+    border:0;
+    height:1px;
+    background:var(--line);
+    margin:52px 0 58px;
+  }
+
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:.88em;
+    background:var(--code);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:1px 5px;
+    color:#c84f12;
+  }
+
+  /* results tables */
+  figure.data{
+    margin:38px auto 34px;
+  }
+  figure.data table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;
+  }
+  figure.data caption{
+    caption-side:top;
+    text-align:left;
+    padding-bottom:14px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--faint);
+  }
+  figure.data th{
+    text-align:left;
+    padding:0 12px 9px 0;
+    border-bottom:1px solid #d4d4d4;
+    font-weight:600;
+    font-size:12.5px;
+    color:#333;
+  }
+  figure.data td{
+    padding:9px 12px 9px 0;
+    border-bottom:1px solid #efefef;
+    color:#3a3a3a;
+  }
+  figure.data td.num,
+  figure.data th.num{
+    text-align:right;
+    padding-right:0;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:13px;
+    font-variant-numeric:tabular-nums;
+  }
+  figure.data tr.ours td{
+    background:rgba(186,76,24,.055);
+    font-weight:600;
+    color:#1d1d1d;
+  }
+  figure.data tr.ours td:first-child::after{
+    content:" ← this stack";
+    font-family:Inter,sans-serif;
+    font-size:11px;
+    font-weight:500;
+    color:var(--accent);
+  }
+  figure.data tr.base td{
+    background:#f4f4f4;
+    color:#555;
+  }
+  figure.data tr.base td:first-child::after{
+    content:" ← before fine-tuning";
+    font-family:Inter,sans-serif;
+    font-size:11px;
+    font-weight:500;
+    color:#888;
+  }
+  figure.data figcaption{
+    margin-top:12px;
+  }
+
+  /* booktabs: rules only at top, under the header, and at the bottom.
+     No vertical lines, no row shading — the eye should follow the numbers. */
+  figure.data.paper table{
+    border-collapse:collapse;
+    font-variant-numeric:tabular-nums;
+    font-size:13.5px;
+  }
+  figure.data.paper caption{
+    caption-side:top;text-align:left;
+    padding-bottom:12px;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:12px;letter-spacing:0;text-transform:none;
+    color:var(--muted);
+  }
+  figure.data.paper thead th{
+    border:0;
+    border-top:1.4px solid #1d1d1d;
+    border-bottom:.8px solid #1d1d1d;
+    padding:8px 0 7px;
+    font-size:11px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;
+    color:#1d1d1d;
+  }
+  figure.data.paper tbody td{
+    border:0;
+    padding:6px 0;
+    color:#2c2c2c;
+  }
+  figure.data.paper tbody tr:last-child td{
+    border-bottom:1.4px solid #1d1d1d;
+  }
+  /* group headings sit in the body, small caps, no rule of their own */
+  figure.data.paper tr.grp td{
+    padding:14px 0 4px;
+    font-size:11px;font-weight:700;
+    letter-spacing:.07em;text-transform:uppercase;
+    color:#1d1d1d;
+  }
+  figure.data.paper tr.grp:first-child td{padding-top:9px}
+  figure.data.paper tbody td:first-child{padding-left:14px;padding-right:18px}
+  figure.data.paper tr.grp td:first-child{padding-left:0}
+  figure.data.paper td.num,
+  figure.data.paper th.num{
+    text-align:right;
+    padding-left:16px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px;
+  }
+  figure.data.paper td b{font-weight:700;color:#1d1d1d}
+  /* our row: tinted and bolded so it can be found at a glance, with a rule
+     above and below so it still reads as part of the table rather than a
+     callout pasted over it. */
+  figure.data.paper tr.ours td{
+    background:rgba(186,76,24,.085);
+    font-weight:700;
+    color:#1d1d1d;
+    border-top:.8px solid rgba(186,76,24,.45);
+    border-bottom:.8px solid rgba(186,76,24,.45);
+  }
+  figure.data.paper tr.ours td:first-child{
+    box-shadow:inset 3px 0 0 var(--accent);
+    padding-left:14px;
+  }
+  figure.data.paper tr.ours td b{color:var(--accent)}
+  figure.data.paper tr.ours td:first-child::after{
+    content:"";
+  }
+  figure.data.paper tr.base td:first-child::after{content:""}
+  figure.data.paper tr.base td{background:none;color:#2c2c2c}
+  @media (max-width:640px){
+    figure.data.paper{overflow-x:auto}
+    figure.data.paper table{min-width:560px}
+  }
+
+  .callout{
+    margin:36px auto;
+    padding:20px 22px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;
+    line-height:1.7;
+    color:#3a3a3a;
+  }
+  .callout strong{color:#9f3f13}
+  .callout p{margin:0 0 12px}
+  .callout p:last-child{margin:0}
+
+  /* research architecture figure */
+  figure.arch{
+    width:min(1100px, calc(100vw - 34px));
+    margin:42px 0 14px;
+    margin-left:calc(50% - min(550px, 50vw - 17px));
+  }
+
+  .arch-card{
+    border:0;
+    background:#fff;
+    box-shadow:none;
+    border-radius:0;
+    overflow:visible;
+  }
+
+  .arch-head{
+    display:block;
+    padding:0 0 18px;
+    border-bottom:1px solid var(--line);
+    background:none;
+  }
+  .arch-kicker{
+    display:block;
+    margin-bottom:6px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--faint);
+  }
+  .arch-kicker::before{display:none}
+  .arch-title{
+    margin:0;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:19px;
+    line-height:1.3;
+    font-weight:650;
+    letter-spacing:-.01em;
+  }
+  .arch-sub{
+    margin:8px 0 0;
+    max-width:70ch;
+    color:var(--muted);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:12.5px;
+    line-height:1.55;
+  }
+  .arch-badge{display:none}
+
+  .arch-body{
+    padding:28px 0 0;
+  }
+
+  .overview{
+    display:grid;
+    grid-template-columns:150px 42px 1fr 42px 220px;
+    gap:12px;
+    align-items:center;
+    margin-bottom:28px;
+  }
+
+  .stack-docs{
+    position:relative;
+    height:116px;
+  }
+  .doc-sheet{
+    position:absolute;
+    width:86px;
+    height:108px;
+    border:1px solid #cfcfcf;
+    background:#fff;
+  }
+  .doc-sheet:nth-child(1){left:0;top:0}
+  .doc-sheet:nth-child(2){left:15px;top:8px}
+  .doc-sheet:nth-child(3){left:30px;top:16px}
+  .doc-sheet:before{
+    content:"";
+    position:absolute;
+    left:9px;
+    right:9px;
+    top:13px;
+    height:1px;
+    background:#d8d8d8;
+    box-shadow:0 11px 0 #d8d8d8,0 22px 0 #d8d8d8,0 33px 0 #d8d8d8,0 44px 0 #d8d8d8;
+  }
+
+  .arrow{
+    text-align:center;
+    color:#8a8a8a;
+    font-family:Inter,sans-serif;
+    font-size:23px;
+  }
+
+  .hero-box{
+    border:1px solid #cfcfcf;
+    background:#fafafa;
+    min-height:92px;
+    padding:18px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:20px;
+    line-height:1.3;
+    font-weight:600;
+    color:#222;
+  }
+
+  .artifacts{
+    display:grid;
+    gap:8px;
+    padding:0;
+    border:0;
+    background:none;
+    box-shadow:none;
+  }
+  .artifact-row{
+    display:grid;
+    grid-template-columns:1fr 24px 1fr;
+    gap:8px;
+  }
+  .artifact-row.single{
+    grid-template-columns:1fr;
+  }
+  .mini-card{
+    border:1px solid #d8d8d8;
+    background:#fff;
+    min-height:42px;
+    padding:9px 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;
+    color:#555;
+  }
+  .plus{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#aaa;
+    font-size:20px;
+  }
+
+  .system{
+    border:1px solid #d6d6d6;
+    background:#fcfcfc;
+    padding:22px;
+    border-radius:0;
+  }
+  .system-title{
+    margin:0 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:#8e8e8e;
+  }
+
+  .system-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr) 44px minmax(0,1fr) 44px minmax(0,1fr);
+    gap:10px;
+    align-items:stretch;
+  }
+
+  .group{
+    border:1px solid #cfcfcf;
+    background:#fff;
+    padding:12px;
+    min-width:0;
+  }
+  .group-inner{
+    display:grid;
+    gap:8px;
+  }
+  .group-label{
+    text-align:center;
+    color:#8b8b8b;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:10px;
+    line-height:1.35;
+    margin-top:2px;
+  }
+
+  .box{
+    min-height:58px;
+    border:1px solid #d7d7d7;
+    background:#fafafa !important;
+    color:#222 !important;
+    padding:10px 8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12px;
+    font-weight:600;
+    line-height:1.3;
+    border-radius:0;
+  }
+
+  .connector{
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .connector::before{
+    content:"";
+    position:absolute;
+    left:0;
+    right:7px;
+    top:50%;
+    height:1px;
+    background:#bfbfbf;
+  }
+  .connector::after{
+    content:"";
+    position:absolute;
+    right:5px;
+    top:50%;
+    width:7px;
+    height:7px;
+    border-top:1px solid #999;
+    border-right:1px solid #999;
+    transform:translateY(-50%) rotate(45deg);
+  }
+  .connector .arc{display:none}
+
+  .footnote-grid{
+    display:none;
+  }
+
+  figcaption{
+    margin-top:10px;
+    max-width:860px;
+    color:#7f7f7f;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:12px;
+    line-height:1.5;
+  }
+
+  footer.post{
+    margin-top:70px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  @media (max-width:620px){
+    .meta{
+      grid-template-columns:1fr;
+      gap:20px;
+      padding:22px 0 24px;
+    }
+  }
+
+  @media (max-width:900px){
+    figure.arch{
+      width:calc(100vw - 28px);
+      margin-left:calc(50% - 50vw + 14px);
+    }
+    .overview{
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    .arrow{transform:rotate(90deg)}
+    .system-grid{
+      grid-template-columns:1fr;
+    }
+    .connector{
+      min-height:26px;
+    }
+    .connector::before{
+      left:50%;
+      right:auto;
+      top:0;
+      bottom:5px;
+      width:1px;
+      height:auto;
+    }
+    .connector::after{
+      left:50%;
+      right:auto;
+      top:auto;
+      bottom:3px;
+      transform:translateX(-50%) rotate(135deg);
+    }
+  }
+
+  @media (max-width:640px){
+    .wrap{padding:26px 20px 76px}
+    nav.top{margin-bottom:44px}
+    nav.top .links{gap:14px}
+    article{font-size:17.5px;line-height:1.78}
+    h1{font-size:38px}
+    .artifact-row{grid-template-columns:1fr}
+    .plus{display:none}
+    figure.data table{font-size:13px}
+    figure.data td.num,figure.data th.num{font-size:12px}
+    figure.data tr.ours td:first-child::after{content:""}
+  }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="top">
+    <a class="back" href="../index.html">&larr; feras aldawsari</a>
+    <span class="links">
+      <a href="../index.html#about">about</a>
+      <a href="../index.html#blog">blog</a>
+      <a href="https://github.com/Firas013" target="_blank" rel="noopener">github</a>
+    </span>
+  </nav>
+
+  <header class="post">
+    <h1>Reading Saudi Filings with a Fine-Tuned PaddleOCR-VL</h1>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="meta-label">Author</div>
+        <div class="meta-value author">Feras Aldawsari</div>
+      </div>
+
+      <div class="meta-item">
+        <div class="meta-label">Topics</div>
+        <div class="meta-value topic-list">
+          <span>OCR</span>
+          <span>Arabic</span>
+          <span>Local Models</span>
+          <span>Evaluation</span>
+        </div>
+      </div>
+
+      <div class="meta-item">
+        <div class="meta-label">Published</div>
+        <div class="meta-value"><time datetime="2026-08-30">Aug. 30, 2026</time></div>
+      </div>
+    </div>
+  </header>
+
+  <article>
+
+    <h2>Why Saudi Financial Filings Are a Different Document Distribution</h2>
+
+    <p>I started with a simple question: <strong>Why are Saudi financial documents still so difficult to read reliably?</strong></p>
+
+    <p>Large VLMs are surprisingly good at documents, but Saudi filings pack several awkward problems into the same page: <strong>Arabic and English, RTL and LTR reading order, Arabic and Western numerals</strong>, visually similar characters, dense financial tables, inconsistent layouts, and everything from <span class="hl">clean digital PDFs to noisy scans</span>.</p>
+
+    <p>The existing options did not quite fit either. Proprietary VLMs can be excellent, but depending on the deployment they can mean <strong>API dependency, cost, or giving up full control over where the data runs</strong>. Open-source VLMs give that control back, but the capable ones are often <strong>large and still general-purpose</strong>.</p>
+
+    <p class="thesis">Neither being <strong>bigger</strong> nor being <strong>private</strong> automatically makes a model good at <span class="hl">Saudi financial documents</span>, especially when the data itself must remain private.</p>
+
+    <p>That made the experiment interesting: <strong>what if we trade generality for specialization?</strong> How far can a much smaller model, adapted specifically to this document distribution, hold up against today's general-purpose VLMs while running <span class="hl">fully locally, even on a CPU</span>?</p>
+
+    <hr class="sep">
+
+    <h2>A Fine-Tuned PaddleOCR-VL for Saudi Financial Documents</h2>
+
+    <p>I built a <strong>fine-tuned document-reading stack</strong> specialized for Saudi financial filings. It runs <span class="hl">fully locally, even on CPU</span>, and is designed around the failure modes that matter here: <strong>Arabic text, mixed reading order, table geometry, noisy scans, and financial figures</strong>.</p>
+
+    <p>The model does the reading. Around it sits <strong>deterministic geometry and financial checks</strong> that reconstruct the page and verify what came back &mdash; the parts of this problem that should never be left to a model's judgement.</p>
+
+    <p>The model is adapted to the distribution on a deliberately small supervision budget &mdash; a few thousand labelled examples, mined from real Saudi filings and bootstrapped from a commercial OCR pass, then filtered. The claim being tested is not that scale was replaced by cleverness; it is that <span class="hl">a narrow enough distribution needs surprisingly little supervision</span>.</p>
+
+    <figure class="arch">
+      <div class="arch-card">
+
+        <div class="arch-head">
+          <div>
+            <div class="arch-kicker">Figure 1 · System architecture</div>
+            <h3 class="arch-title">High-level local document understanding pipeline</h3>
+            <p class="arch-sub">
+              A deliberately abstracted view of the document pipeline used throughout the experiments.
+            </p>
+          </div>
+          <div class="arch-badge">local-first · partially abstracted · CPU-capable</div>
+        </div>
+
+        <div class="arch-body">
+
+          <div class="overview">
+            <div class="stack-docs" aria-hidden="true">
+              <div class="doc-sheet"></div>
+              <div class="doc-sheet"></div>
+              <div class="doc-sheet"></div>
+            </div>
+
+            <div class="arrow">→</div>
+
+            <div class="hero-box">Document Understanding Stack</div>
+
+            <div class="arrow">→</div>
+
+            <div class="artifacts">
+              <div class="artifact-row">
+                <div class="mini-card">structured page view</div>
+                <div class="plus">+</div>
+                <div class="mini-card">recoverable signals</div>
+              </div>
+              <div class="artifact-row single">
+                <div class="mini-card">machine-readable output</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="system">
+            <div class="system-title">system architecture</div>
+
+            <div class="system-grid">
+              <div class="group">
+                <div class="group-inner">
+                  <div class="box gray">Document Cleanup</div>
+                  <div class="box gray">Geometry Normalization</div>
+                  <div class="group-label">preprocessing</div>
+                </div>
+              </div>
+
+              <div class="connector" aria-hidden="true"><div class="arc">→</div></div>
+
+              <div class="group">
+                <div class="group-inner">
+                  <div class="box orange">Region Discovery</div>
+                  <div class="box orange">Structure Analysis</div>
+                  <div class="group-label">layout understanding</div>
+                </div>
+              </div>
+
+              <div class="connector" aria-hidden="true"><div class="arc">→</div></div>
+
+              <div class="group recognition">
+                <div class="group-inner">
+                  <div class="box blue">Text and Table Understanding</div>
+                  <div class="box blue">Element Parsing</div>
+                  <div class="box blue">Numeric Recovery</div>
+                  <div class="group-label">content understanding</div>
+                </div>
+              </div>
+
+              <div class="connector" aria-hidden="true"><div class="arc">→</div></div>
+
+              <div class="group">
+                <div class="group-inner">
+                  <div class="box green">Reading Order Recovery</div>
+                  <div class="box green">Layout Reconstruction</div>
+                  <div class="box green">Consistency Checks</div>
+                  <div class="group-label">postprocessing</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <figcaption>Figure 1. Stages of processing, not separate models &mdash; what happens to a page between the PDF and the machine-readable output. Implementation details are intentionally abstracted; later sections focus on adaptation and evaluation.</figcaption>
+    </figure>
+
+    <hr class="sep">
+
+    <h2>Measuring It Honestly Turned Out to Be the Harder Half</h2>
+
+    <p>Once the stack worked, I needed to know whether it was actually <em>good</em>. There is no established benchmark for Arabic financial-document understanding, so I built one, as a fork of an existing extraction harness.</p>
+
+    <p>The first thing I learned is that <strong>two perfectly faithful transcriptions of the same page can differ in nearly every byte</strong>. <code>٨٣٩,٨٢١</code> and <code>839,821</code> are the same number. A section header can be a sparse row or a full-width merged cell. An RTL statement can be read label-first or label-last, and both are correct. Score those differences as errors and you are measuring typography — in whichever direction happens to flatter the system that shares your annotator's habits.</p>
+
+    <p>So the benchmark canonicalises <strong>both sides with the same rules, inside the same function call</strong>, with no way to ask for it on one side only. It then reports the raw and canonical numbers <span class="hl">side by side</span>, because the ranking genuinely flips between them: across five documents, raw and canonical name a <strong>different winner on four of the five</strong>. A leaderboard quoting either pass alone would state a conclusion the other pass contradicts.</p>
+
+    <p>Results are reported on three axes that are <strong>never combined into one number</strong>:</p>
+
+    <div class="callout">
+      <p><strong>P — Parse.</strong> Does the page come back with the right table structure?</p>
+      <p><strong>E — Extract.</strong> Are the individual figures the right figures?</p>
+      <p><strong>F — Finance.</strong> Does the system's own output <em>add up</em>? Totals are sums of their components; a balance sheet balances. This is checked with exact fraction arithmetic against identities declared from the statement itself.</p>
+      <p>Averaging these would be the single most misleading thing the benchmark could do. A system that parses beautifully and computes wrongly is not "90% correct" — it produces <strong>confident, well-formed, wrong financial figures</strong>, which is the worst possible failure mode in this domain.</p>
+    </div>
+
+    <hr class="sep">
+
+    <h2>What the Benchmark Caught in Itself</h2>
+
+    <p>Building the instrument was not a formality. Five separate defects turned up in the scoring code, and <strong>every one had the same shape</strong>: a normalisation rule that fired on the ground truth and quietly declined on the model's output, leaving the two sides in different frames — and charging the difference to the model.</p>
+
+    <p>The worst of them compared ground-truth table <em>i</em> against predicted table <em>i</em> by position. Any system that split one table into two shifted everything after it, and each table was scored against its neighbour. On an 11-page scan this reported that <strong>every system got 0.0% of the figures right</strong>, while 83% of the ground truth's numbers were sitting in their output, verbatim.</p>
+
+    <p>Then the answer key itself. Declaring the statements' own arithmetic identities and running them against the ground truth found <strong>six annotation errors in a single balance sheet</strong> — one cell omitted entirely, five misread digits. Each was confirmed twice: against the page pixels, and against the arithmetic, where the correction closed the discrepancy <span class="hl">exactly</span>. A seventh discrepancy could not be resolved at 400 DPI and is logged as an open flag rather than guessed at.</p>
+
+    <p class="thesis">If the measuring instrument is not itself tested, you are not measuring the models. You are measuring <span class="hl">your own conventions</span>, and you will not notice.</p>
+
+    <hr class="sep">
+
+    <h2>Results</h2>
+
+    <p>Nine systems on <strong>four</strong> Saudi filings — a bank, a sports operator, a dairy producer and a mall operator, two digital PDFs and two scans, 5 to 11 pages each. The comparison set is a mix of dedicated document parsers and general-purpose VLMs, plus <strong>the same pipeline with no fine-tuning</strong> as a floor. Everything below is the canonical pass.</p>
+
+    <p>Four, not five, and the missing one is mine. The corpus has a fifth document, but it turned out to be <span class="hl">in my fine-tuning data</span>, so I have excluded it from every table here. That story is in the next section, because it changed one of my results.</p>
+
+    <p>All nine systems, every metric, one table. <strong>P</strong> is table-structure
+    fidelity and <strong>GriTS</strong> its content-level companion; <strong>E</strong>
+    is exact-match on numeric cells and <strong>CER</strong> the digit error rate
+    beneath it; <strong>Cov.</strong> is the share of ground-truth cells the system
+    produced anything for; <strong>F</strong> is arithmetic consistency; and
+    <strong>Script</strong> is how often the printed digit script was preserved.
+    Bold marks the best value in each column.</p>
+
+    <figure class="data paper">
+      <table>
+        <caption>Arabic financial-document understanding &mdash; four Saudi filings, canonical pass. Higher is better except CER.</caption>
+        <thead>
+          <tr><th>Model</th><th class="num">P</th><th class="num">GriTS</th><th class="num">E</th><th class="num">CER&darr;</th><th class="num">Cov.</th><th class="num">F</th><th class="num">Script</th></tr>
+        </thead>
+        <tbody>
+          <tr class="grp"><td colspan="8">Baseline</td></tr>
+          <tr><td>PaddleOCR-VL</td><td class="num">0.123</td><td class="num">0.343</td><td class="num">0.295</td><td class="num">0.544</td><td class="num">0.626</td><td class="num">0.026</td><td class="num">0.750</td></tr>
+          <tr class="grp"><td colspan="8">Fine-tuned (ours)</td></tr>
+          <tr class="ours"><td>PaddleOCR-VL</td><td class="num">0.364</td><td class="num">0.590</td><td class="num">0.647</td><td class="num">0.338</td><td class="num">0.822</td><td class="num"><b>0.856</b></td><td class="num">0.750</td></tr>
+          <tr class="grp"><td colspan="8">Dedicated document parsers</td></tr>
+          <tr><td>LlamaParse agentic</td><td class="num">0.457</td><td class="num">0.609</td><td class="num">0.445</td><td class="num">0.493</td><td class="num">0.902</td><td class="num">0.738</td><td class="num">0.855</td></tr>
+          <tr><td>LlamaParse agentic+</td><td class="num">0.469</td><td class="num">0.636</td><td class="num">0.610</td><td class="num">0.315</td><td class="num">0.872</td><td class="num">0.561</td><td class="num"><b>0.941</b></td></tr>
+          <tr><td>Mistral OCR</td><td class="num">0.438</td><td class="num">0.634</td><td class="num">0.642</td><td class="num">0.272</td><td class="num">0.909</td><td class="num">0.555</td><td class="num">0.750</td></tr>
+          <tr class="grp"><td colspan="8">General-purpose VLMs</td></tr>
+          <tr><td>Gemini 3.5 Flash Lite</td><td class="num"><b>0.635</b></td><td class="num">0.749</td><td class="num"><b>0.657</b></td><td class="num">0.269</td><td class="num">0.943</td><td class="num">0.353</td><td class="num">0.755</td></tr>
+          <tr><td>Qwen3.8 27B</td><td class="num">0.595</td><td class="num"><b>0.817</b></td><td class="num">0.596</td><td class="num"><b>0.138</b></td><td class="num"><b>0.966</b></td><td class="num">0.214</td><td class="num">0.667</td></tr>
+          <tr><td>GPT-5 mini</td><td class="num">0.235</td><td class="num">0.473</td><td class="num">0.197</td><td class="num">0.634</td><td class="num">0.674</td><td class="num">0.447</td><td class="num">0.747</td></tr>
+          <tr><td>Mistral Medium 3.1</td><td class="num">0.179</td><td class="num">0.463</td><td class="num">0.215</td><td class="num">0.574</td><td class="num">0.751</td><td class="num">0.279</td><td class="num">0.750</td></tr>
+        </tbody>
+      </table>
+      <figcaption>Read the rows against each other, not the columns against a threshold. The top three on E are separated by 0.015 across four documents with no confidence intervals &mdash; that is a tie, not a ranking. The column where the gap is wide enough to mean something is F.</figcaption>
+    </figure>
+
+    <p>The shape of the table is the finding. Systems that lead on reading the page
+    &mdash; coverage, digit error, structure &mdash; do not lead on whether the page
+    they produce <em>adds up</em>. Qwen3.8 27B has the lowest digit error and the
+    highest coverage in the comparison and still places last but one on arithmetic.
+    Gemini leads P and E and comes sixth on F. The fine-tuned stack is mid-table on
+    every reading metric and first on F by 0.118.</p>
+
+    <p>And the part that is easy to forget when comparing against commercial parsers: the local stack read <strong>31 pages in 82 seconds</strong> (all five documents, timed end to end) — about 16 seconds per document, or roughly 2.6 seconds per page — <span class="hl">at zero marginal cost</span>. The strongest commercial parser in this comparison took around 53 seconds <em>per document</em> at $0.056 per page.</p>
+
+    <p>One honest caveat: those timings are on a <strong>local GPU</strong>, not the CPU path. The stack runs on CPU, but these are not CPU numbers.</p>
+
+    <hr class="sep">
+
+    <h2>What the Fine-Tuning Actually Bought</h2>
+
+    <p>Every table above includes a row most write-ups leave out: <strong>the same
+    pipeline with no fine-tuning at all</strong> — stock PaddleOCR weights, same
+    code, same pages, same scoring. It is the only honest way to answer "was the
+    adaptation worth it," and it is cheap to run once the harness exists.</p>
+
+    <p>Stock PaddleOCR scores <span class="hl"><strong>0.026 on arithmetic</strong></span>.
+    Of the declared identities across four filings, its output satisfies almost
+    none. It would place last on table structure too, below every other system
+    in the comparison. On this document distribution the published package is not
+    a weak baseline — it is barely a starting point.</p>
+
+    <p>Fine-tuning takes the same pipeline from <strong>0.026 to 0.856</strong> on
+    arithmetic consistency, and from 0.123 to 0.364 on table structure, on a
+    supervision budget of a few thousand labelled examples. That is the whole
+    case for adapting to a distribution rather than reaching for a bigger general
+    model: the adaptation is small, cheap, and worth more here than scale was.</p>
+
+    <hr class="sep">
+
+    <h2>The Document I Had to Throw Out</h2>
+
+    <p>While writing this post I checked something I should have checked much earlier: whether any evaluation document was in the fine-tuning data. One was. A filing that entered the corpus as <code>test_1</code> had been ingested months earlier under a different name, and contributed <strong>405 labelled crops</strong> to the training set. Every long figure in its ground truth appears in that training source — 74 out of 74.</p>
+
+    <p>The other four documents are clean, verified by issuer name and by figure overlap. But the model had memorised part of a page it was then scored on, and it showed: on that document it scored a <span class="hl">perfect 1.000</span> on digit exactness.</p>
+
+    <p>Removing it changes one of my two headline results:</p>
+
+    <figure class="data">
+      <table>
+        <caption>Local stack, with and without the contaminated document</caption>
+        <thead>
+          <tr><th>Axis</th><th class="num">All 5 docs</th><th class="num">Clean 4</th><th>Rank</th></tr>
+        </thead>
+        <tbody>
+          <tr class="ours"><td>F — arithmetic</td><td class="num">0.885</td><td class="num">0.856</td><td>1st → <strong>1st</strong></td></tr>
+          <tr class="ours"><td>E — numeric exact</td><td class="num">0.713</td><td class="num">0.647</td><td>1st → <strong>2nd (tied)</strong></td></tr>
+          <tr class="ours"><td>P — table structure</td><td class="num">0.442</td><td class="num">0.364</td><td>5th → <strong>6th</strong></td></tr>
+        </tbody>
+      </table>
+      <figcaption>The E result was contamination — a clear first becomes a tie for second. The F result was not.</figcaption>
+    </figure>
+
+    <p>I had written "first on digit accuracy" before running that check. It was not true. Every table above this section uses the clean four.</p>
+
+    <hr class="sep">
+
+    <h2>The Checkpoint I Was Not Actually Running</h2>
+
+    <p>The same audit turned up a second problem, this time in my own plumbing. The pipeline had been loading <strong>checkpoint 3</strong>, not the trained-out checkpoint 21 — which is byte-identical to the best-validation model. Checkpoint 21 was exported, and thirteen minutes later checkpoint 3 was copied over it. The export script picks the highest <em>numbered</em> file and had happily written the wrong one months ago.</p>
+
+    <p>So I re-ran everything on the checkpoint I meant to be running. The honest result is that <span class="hl">it barely mattered</span>: table structure moved 0.344 → 0.349, digit exactness 0.638 → 0.642, coverage 0.798 → 0.818, and arithmetic consistency actually <em>fell</em>, 0.878 → 0.830. Not one rank changed except the E tie above. (Those are like-for-like figures on one set of page images; the tables in this post use a slightly higher render resolution, which is why they read a little higher.)</p>
+
+    <p>That is worth saying out loud because the tempting conclusion — "my table structure score is low because I shipped a bad checkpoint" — is false. The better checkpoint finds more of the page, and my weakest axis stays weak. Whatever is costing me on structure is downstream of the reading itself &mdash; in how what comes back is assembled into rows and columns.</p>
+
+    <p>I also tried the obvious upgrade in the other direction: a checkpoint trained on <strong>four times the data</strong>, drawn from three times as many source documents. It is <em>worse</em> on every axis that matters — arithmetic consistency collapses from 0.830 to 0.426. Coverage goes slightly up and accuracy goes down: it reads more of the page and gets more of it wrong. For a task where one wrong digit destroys a whole arithmetic identity, that trade is a straight loss.</p>
+
+    <p class="thesis">Four times the training data made the model worse, and I would have shipped it as an upgrade. The benchmark existing is the only reason I know.</p>
+
+    <hr class="sep">
+
+    <h2>What This Actually Says</h2>
+
+    <p>With the contaminated document gone, the honest reading is narrower and, I think, more interesting:</p>
+
+    <p class="thesis">A fine-tuned PaddleOCR-VL produces financial statements that <strong>add up</strong> more often than any system tested — 0.856 against 0.738 for the nearest — while tying for <strong>second on digit accuracy</strong> and landing <strong>sixth of nine</strong> on table structure. The same pipeline without fine-tuning scores <strong>0.026</strong> on arithmetic.</p>
+
+    <p>The F result is the one I trust, because it survived both audits — the contaminated document and the checkpoint swap. It is also the hardest to get by accident: arithmetic consistency requires a system to read a whole block of figures correctly <em>and</em> place them in the right relationship to each other. Getting the digits roughly right is not enough, which is why several systems with respectable E scores collapse on F. Gemini leads on digit exactness and comes sixth on arithmetic.</p>
+
+    <p>Where it loses is table structure, and that is not surprising. The stack was specialized on what this distribution punishes — Arabic glyph confusions, Arabic-Indic numerals, dense numeric columns, tightly cropped lines of exactly this kind of page. It was <strong>not</strong> specialized on general layout reasoning, and reconstructing table structure is precisely where a large general VLM's world knowledge earns its keep: inferring that a header spans two columns, or that a stray line belongs to the row above.</p>
+
+    <p>The raw, un-normalised scores make the same point from another angle. Ranked by raw score the stack comes <strong>3rd</strong> on the earliest document it was designed around, and <strong>7th, 6th, and last</strong> on the three added afterwards. Canon repairs most of that gap — that is what canon is for — but the shape of the drop measures how much my table assembly encodes <em>my</em> conventions rather than the page's. It is invisible in the headline column, it survived swapping in the better layout checkpoint, and it is the most actionable thing in the whole evaluation.</p>
+
+    <p>There is also a shared failure nobody escapes. On the one filing printed in Latin digits rather than Arabic-Indic, <strong>most systems silently convert the script</strong> — mine included, scoring 0.000 on script fidelity there while scoring a clean 1.000 on every Arabic-Indic document. Only one dedicated parser preserved what the page actually printed. Three of the four documents could never have revealed it.</p>
+
+    <hr class="sep">
+
+    <h2>What This Is Not</h2>
+
+    <p>Four documents is a <strong>discussion, not a leaderboard</strong>, and I want to be exact about that. Nothing here is significance-tested, no ranking has a confidence interval, and the comparison set is mid-tier rather than frontier — these are the cheap and fast tiers of each family, not the largest models available. On a corpus this size, any ranking I quoted as settled would be a claim the data cannot support. <strong>This is not state of the art and I am not claiming it is.</strong></p>
+
+    <p>What four documents <em>can</em> do is show that the method works, surface failure modes worth chasing, and demonstrate that a small specialized local stack is a serious option for this distribution rather than a curiosity. Whether it holds at fifty documents, against frontier models, is the next experiment — not this one.</p>
+
+    <p>The evaluation harness, the ground truth, the declared arithmetic identities, and every scored result are in <a href="https://github.com/Firas013/ArabicFinBench" target="_blank" rel="noopener">the repository</a> — including the corrections log, the open unresolved flag, and the record of every defect the benchmark found in itself.</p>
+
+  </article>
+
+  <footer class="post">
+    <span>Feras Aldawsari</span>
+    <a href="../index.html#blog">&larr; all posts</a>
+  </footer>
+
+</div>
+</body>
+</html>
